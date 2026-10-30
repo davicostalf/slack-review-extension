@@ -20,7 +20,11 @@ O popover de sugestão só aparece quando o Claude acha uma melhoria **significa
    git clone https://github.com/davicostalf/slack-review-extension ~/.claude-slack-review && ~/.claude-slack-review/native-host/install.sh
    ```
    Ele baixa a extensão para `~/.claude-slack-review`, acha o `node` e o `claude` no seu PATH e registra o conector local em todos os navegadores compatíveis que encontrar. No fim, copia para a área de transferência o caminho da pasta `extension/` e tenta abrir `chrome://extensions` (no macOS).
-2. Em `chrome://extensions`, ative o **Modo do desenvolvedor** (canto superior direito), clique em **Carregar sem compactação** e cole o caminho. Confira que o ID é o de cima.
+2. Em `chrome://extensions`, ative o **Modo do desenvolvedor** (canto superior direito) e clique em **Carregar sem compactação**. Abre uma janela para escolher a pasta. A pasta `~/.claude-slack-review` começa com ponto e fica escondida, então não a procure clicando:
+   - no macOS, aperte **⌘ + Shift + G**, cole o caminho com ⌘V, aperte Enter e clique em **Selecionar**;
+   - no Linux, aperte **Ctrl + L**, cole o caminho e confirme.
+
+   Confira que o ID é o de cima.
 3. A página de configurações abre sozinha na primeira vez. Confira se a seção **Conexão** está toda ok e preencha **Seu nome no Slack** do jeito que ele aparece nas mensagens. As mudanças são salvas sozinhas.
 
    Em **Ajustes opcionais** dá para trocar o modelo (Sonnet 5.5 é o padrão, Haiku 5.5 é mais rápido), o tamanho mínimo da mensagem (padrão 15 caracteres) e o tempo limite (padrão 30 s).

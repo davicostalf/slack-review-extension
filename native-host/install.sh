@@ -85,7 +85,12 @@ EXT_DIR="$(dirname "$DIR")/extension"
 echo
 echo "Falta carregar a extensão no navegador:"
 echo "  1. Ative o Modo do desenvolvedor (canto superior direito de chrome://extensions)."
-echo "  2. Clique em Carregar sem compactação e cole este caminho:"
+echo "  2. Clique em Carregar sem compactação. Vai abrir uma janela para escolher a pasta."
+if [ "$(uname)" = "Darwin" ]; then
+  echo "  3. Nessa janela, aperte ⌘ + Shift + G, cole o caminho abaixo com ⌘V, aperte Enter e clique em Selecionar:"
+else
+  echo "  3. Nessa janela, aperte Ctrl + L, cole o caminho abaixo, aperte Enter e confirme:"
+fi
 echo
 echo "     $EXT_DIR"
 echo
