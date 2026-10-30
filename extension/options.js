@@ -113,14 +113,16 @@ function showUpdate(u) {
   const msg = $('up-msg');
   msg.dataset.tone = '';
   msg.textContent = '';
-  $('update').hidden = true;
+  $('banner').hidden = true;
   $('ver-now').textContent = 'Versão ' + CURRENT;
   if (!u) return;
   if (u.code === 'no_repo') { msg.textContent = u.error; return; }
-  if (u.available) {
-    $('ver-now').textContent = 'Versão ' + u.latest + ' disponível';
-    $('update').hidden = false;
-    msg.textContent = 'Instalada: ' + CURRENT + '.';
+  // A cached result may predate the last update
+  if (u.available && u.latest !== CURRENT) {
+    $('banner-title').textContent = 'Nova versão disponível: ' + u.latest;
+    $('banner-msg').dataset.tone = '';
+    $('banner-msg').textContent = 'Você está na ' + CURRENT + '. A extensão recarrega sozinha depois de atualizar.';
+    $('banner').hidden = false;
   } else if (u.error) {
     msg.dataset.tone = 'err';
     msg.textContent = u.error;
@@ -142,20 +144,20 @@ async function checkUpdate() {
 $('update').addEventListener('click', async () => {
   $('update').disabled = true;
   $('update').textContent = 'Atualizando…';
-  $('up-msg').dataset.tone = '';
-  $('up-msg').textContent = '';
+  const msg = $('banner-msg');
+  msg.dataset.tone = '';
   let res;
   try { res = await chrome.runtime.sendMessage({ type: 'apply_update' }); } catch (e) { res = { error: String(e), code: 'unknown' }; }
   res = res || { error: 'Sem resposta.', code: 'unknown' };
   if (res.ok) {
     // The extension reloads itself right after this reply
-    $('up-msg').textContent = 'Atualizado para a versão ' + res.version + '. Recarregando…';
+    msg.textContent = 'Atualizado para a versão ' + res.version + '. Recarregando…';
     return;
   }
   $('update').disabled = false;
   $('update').textContent = 'Atualizar';
-  $('up-msg').dataset.tone = 'err';
-  $('up-msg').textContent = res.error || 'Não consegui atualizar.';
+  msg.dataset.tone = 'err';
+  msg.textContent = res.error || 'Não consegui atualizar.';
 });
 $('check-update').addEventListener('click', checkUpdate);
 

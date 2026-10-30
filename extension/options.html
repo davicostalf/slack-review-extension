@@ -13,6 +13,7 @@
     --muted: #616061;
     --border: #e1e1e3;
     --accent: #1264a3;
+    --on-accent: #ffffff;
     --ok: #007a5a;
     --warn: #b35900;
     --err: #c0392b;
@@ -26,6 +27,7 @@
       --muted: #9a9b9d;
       --border: #35373b;
       --accent: #4ea4f0;
+      --on-accent: #0b1a26;
       --ok: #2bac76;
       --warn: #e8a33d;
       --err: #f0645a;
@@ -94,7 +96,7 @@
   button.link { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; }
   button.link:hover { color: var(--text); }
   button.danger:hover { color: var(--err); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   button.primary:hover { background: var(--accent); filter: brightness(1.1); }
 
   /* install command */
@@ -103,10 +105,22 @@
   .cmd button { flex: none; }
 
   /* version */
-  .version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .version-row p { margin: 0; }
+  #ver-now { margin: 0; }
   #up-msg { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
   #up-msg[data-tone="err"] { color: var(--err); }
+
+  .banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-bottom: 32px; padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+    border-radius: var(--radius);
+  }
+  .banner strong { display: block; font-size: 15px; }
+  .banner p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .banner p[data-tone="err"] { color: var(--err); }
+  .banner button { flex: none; padding: 8px 16px; font-size: 14px; }
+  @media (max-width: 420px) { .banner { flex-direction: column; align-items: stretch; } }
 
   .samples { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .samples p { margin: 0; }
@@ -121,6 +135,13 @@
 </head>
 <body>
 <main>
+  <div class="banner" id="banner" role="region" aria-labelledby="banner-title" hidden>
+    <div>
+      <strong id="banner-title">Nova versão disponível</strong>
+      <p id="banner-msg"></p>
+    </div>
+    <button id="update" type="button" class="primary">Atualizar</button>
+  </div>
   <header>
     <h1>Revisor de mensagens do Slack</h1>
     <p>O Claude revisa sua mensagem antes de enviar e só interrompe quando há algo que vale melhorar.</p>
@@ -192,10 +213,7 @@
 
   <section aria-labelledby="h-version">
     <h2 id="h-version">Versão</h2>
-    <div class="version-row">
-      <p id="ver-now">Versão</p>
-      <button id="update" type="button" class="primary" hidden>Atualizar</button>
-    </div>
+    <p id="ver-now">Versão</p>
     <p id="up-msg" role="status"></p>
     <p class="hint"><button id="check-update" type="button" class="link">Verificar atualizações</button></p>
   </section>
