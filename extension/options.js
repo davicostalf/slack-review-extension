@@ -1,4 +1,5 @@
 const DEFAULTS = { myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
+const ALL_URLS = { origins: ['<all_urls>'] };
 const $ = (id) => document.getElementById(id);
 
 function ensureModelOption(value) {
@@ -24,11 +25,50 @@ function fill(o) {
 async function load() {
   const o = await chrome.storage.sync.get(DEFAULTS);
   fill(o);
+  // The browser's permission is the source of truth for the links setting
+  const links = await hasLinksPermission();
+  $('links').checked = links;
   // Keep optional settings folded unless someone changed them
-  $('advanced').open = o.model !== DEFAULTS.model || o.minChars !== DEFAULTS.minChars || o.timeoutSec !== DEFAULTS.timeoutSec;
+  $('advanced').open = links || o.model !== DEFAULTS.model || o.minChars !== DEFAULTS.minChars || o.timeoutSec !== DEFAULTS.timeoutSec;
   const { samples = [] } = await chrome.storage.local.get('samples');
   $('count').textContent = String(samples.length);
 }
+
+async function hasLinksPermission() {
+  try { return await chrome.permissions.contains(ALL_URLS); } catch { return false; }
+}
+
+function linksNote(text) {
+  $('links-note').textContent = text;
+  $('links-note').hidden = !text;
+}
+
+// request() needs the user gesture, so it is the first call in the handler
+$('links').addEventListener('click', async () => {
+  const on = $('links').checked;
+  linksNote('');
+  try {
+    if (on) {
+      const ok = await chrome.permissions.request(ALL_URLS);
+      if (!ok) {
+        $('links').checked = false;
+        linksNote('Sem a permissão do navegador, os links não são lidos.');
+      }
+    } else {
+      await chrome.permissions.remove(ALL_URLS);
+    }
+  } catch {
+    $('links').checked = await hasLinksPermission();
+    linksNote('Não consegui mudar a permissão.');
+  }
+});
+
+// Also follows changes made in the browser's own extension settings
+const syncLinks = async () => { $('links').checked = await hasLinksPermission(); };
+try {
+  chrome.permissions.onAdded.addListener(syncLinks);
+  chrome.permissions.onRemoved.addListener(syncLinks);
+} catch {}
 
 let savedTimer;
 function flashSaved() {

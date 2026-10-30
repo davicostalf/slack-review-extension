@@ -75,6 +75,10 @@
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   input[aria-invalid="true"] { border-color: var(--warn); }
+  .check { display: flex; align-items: center; gap: 8px; }
+  .check input { width: 16px; height: 16px; margin: 0; padding: 0; flex: none; accent-color: var(--accent); }
+  .check label { margin: 0; }
+  .check + .hint { padding-left: 24px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
 
@@ -196,6 +200,14 @@
           <input id="timeoutSec" type="number" min="5" max="55" inputmode="numeric" aria-describedby="timeoutSec-hint">
           <p class="hint" id="timeoutSec-hint">Segundos, entre 5 e 55.</p>
         </div>
+      </div>
+      <div class="field">
+        <div class="check">
+          <input id="links" type="checkbox" aria-describedby="links-hint">
+          <label for="links">Entender links sem explicação</label>
+        </div>
+        <p class="hint" id="links-hint">Abre o link com a sua sessão do navegador e lê só o título e a descrição da página. Nada do conteúdo é enviado.</p>
+        <p class="hint" id="links-note" role="status" hidden style="padding-left: 24px"></p>
       </div>
       <div class="field">
         <button id="reset" type="button" class="link">Restaurar padrões</button>

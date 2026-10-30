@@ -1,6 +1,13 @@
+importScripts('linkinfo.js');
+
 const HOST = 'com.claude_slack_review.host';
 const BLOCK_MS = 5 * 60 * 1000;
 const BLOCKING_CODES = ['not_logged_in', 'host_missing'];
+// Slightly under the 4s the content script waits, so our answer arrives in time
+const LINK_TIMEOUT_MS = 3500;
+const LINK_MAX_BYTES = 200 * 1024;
+const LINK_MAX_COUNT = 2;
+const ALL_URLS = { origins: ['<all_urls>'] };
 const UPDATE_ALARM = 'update-check';
 const HOST_MISSING_MSG = 'Falta instalar o conector local. Rode o comando de instalação (veja a seção Instalação do README).';
 
@@ -31,6 +38,57 @@ async function handleReview(payload) {
     await chrome.storage.local.set({ block: { until: Date.now() + BLOCK_MS, error: res.error, code: res.code } });
   }
   return res;
+}
+
+// Opens the page with the user's own session and reads only title and description.
+// Returns { url, title, description } or null (login wall, non-HTML, error, timeout).
+async function fetchLinkInfo(url) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), LINK_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      credentials: 'include', redirect: 'follow', signal: ctl.signal,
+      referrerPolicy: 'no-referrer', headers: { Accept: 'text/html' }
+    });
+    const type = res.headers.get('content-type') || '';
+    if (!res.ok || !/text\/html/i.test(type) || !res.body) return null;
+    const reader = res.body.getReader();
+    const chunks = [];
+    let size = 0;
+    while (size < LINK_MAX_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      size += value.length;
+    }
+    reader.cancel().catch(() => {});
+    const bytes = new Uint8Array(size);
+    let off = 0;
+    for (const c of chunks) { bytes.set(c, off); off += c.length; }
+    let charset = (/charset=([\w-]+)/i.exec(type) || [])[1] || 'utf-8';
+    let html;
+    try { html = new TextDecoder(charset).decode(bytes); } catch { html = new TextDecoder('utf-8').decode(bytes); }
+    const info = SlackReviewLinks.parseLinkInfo(html, res.url || url, url);
+    return info && !info.login ? info : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function handleLinkInfo(urls) {
+  try {
+    if (!(await chrome.permissions.contains(ALL_URLS))) return [];
+    const list = (Array.isArray(urls) ? urls : [])
+      .filter((u) => typeof u === 'string' && SlackReviewLinks.isFetchableUrl(u))
+      .slice(0, LINK_MAX_COUNT);
+    const found = await Promise.all(list.map(fetchLinkInfo));
+    // Nothing but url, title and description leaves the browser
+    return found.filter(Boolean).map((i) => ({ url: i.url, title: i.title, description: i.description }));
+  } catch {
+    return [];
+  }
 }
 
 async function handlePing(model) {
@@ -87,6 +145,7 @@ chrome.runtime.onStartup.addListener(() => { scheduleChecks(); handleCheckUpdate
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg) return false;
   if (msg.type === 'review') handleReview(msg.payload).then(sendResponse);
+  else if (msg.type === 'link_info') handleLinkInfo(msg.urls).then(sendResponse);
   else if (msg.type === 'ping') handlePing(msg.model).then(sendResponse);
   else if (msg.type === 'check_update') handleCheckUpdate().then(sendResponse);
   else if (msg.type === 'apply_update') {

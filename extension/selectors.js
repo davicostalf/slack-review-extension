@@ -46,6 +46,10 @@ globalThis.SLACK_REVIEW_SELECTORS = {
     '.c-texty_autocomplete',
     '[data-qa="tab_complete_ui"]'
   ],
+  composerLink: [
+    'a[href^="http"]',
+    'a[data-stringify-link]'
+  ],
   entity: [
     '.ql-mention',
     '[data-stringify-type="mention"]',

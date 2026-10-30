@@ -42,7 +42,7 @@ Manualmente: `git -C ~/.claude-slack-review pull` e depois recarregue a extensã
 
 ## Como usar
 
-- Escreva e envie normalmente. Ao apertar Enter (ou clicar em enviar), aparece "Claude revisando…" perto do campo, com o botão "Enviar sem revisar".
+- Escreva e envie normalmente. Ao apertar Enter (ou clicar em enviar), o texto do campo começa a brilhar enquanto o Claude revisa.
 - Sem melhoria significativa: o original é enviado automaticamente, como sempre.
 - Com melhoria significativa: **nada é enviado**. Um popover abre acima do campo (o foco continua no campo, então dá para seguir digitando) com o motivo e a sugestão marcada contra o seu texto: o que sai aparece riscado, o que entra aparece sublinhado e destacado. O texto do popover é selecionável, para copiar qualquer trecho.
 - Passe o mouse ou use Tab sobre uma mudança para ver **Aplicar**: só aquele trecho vai para o campo. **Substituir tudo** troca o texto do campo pela sugestão inteira e **Copiar** leva a sugestão para a área de transferência. Nenhum botão envia: quem envia é sempre você.
@@ -52,9 +52,11 @@ Manualmente: `git -C ~/.claude-slack-review pull` e depois recarregue a extensã
 - O Claude não inventa informação. Quando falta algo que só você sabe, a sugestão traz um marcador como ⟨qual era a causa⟩, e o envio (por qualquer caminho, exceto ⌥+Enter) fica bloqueado até você preencher ou apagar o marcador.
 - Se a mensagem tiver menções ou canais, o popover avisa: substituir por texto simples perde as menções reais, então confira e refaça as menções antes de enviar.
 - **⌥+Enter** (Option+Enter) envia sem passar pela revisão.
+- Enquanto o Claude revisa, o próprio texto da mensagem no campo brilha em movimento (com a opção de reduzir movimento do sistema, fica só levemente colorido). **Esc** cancela a revisão e deixa o texto no campo para você editar; **⌥+Enter** envia na hora, sem revisar. Mexer no texto durante a revisão também a descarta.
+- Erros e tempo esgotado aparecem num aviso acima do campo (com **×** para fechar) e o botão "Enviar original"; a mensagem nunca é enviada sozinha.
+- **Entender links sem explicação** (opcional, em Ajustes opcionais): quando a mensagem é basicamente um link, a extensão abre o link com a sua sessão do navegador (por isso funciona em páginas privadas, como Google Docs, Figma, Jira e GitHub privado) e lê só o título e a descrição da página, para o Claude dizer o que ele é. Nada do conteúdo da página é enviado. Ao ligar, o Chrome pede permissão para acessar os sites. Se a página pedir login ou falhar, o Claude deduz pelo nome do link, como antes.
 - Mensagens menores que o mínimo, só com emoji ou links passam direto.
 - Se você mudar o texto enquanto a revisão roda, o resultado é descartado.
-- Em erro ou tempo esgotado a mensagem **nunca** é enviada sozinha: aparece o erro com o botão "Enviar original".
 - Estilo: toda mensagem enviada pela extensão entra nas amostras (últimas 40, guardadas no navegador), junto com mensagens suas visíveis no contexto. Esses textos e as últimas mensagens da conversa são enviados ao Claude para a revisão. O botão "Limpar amostras" fica nas opções.
 
 ## Problemas comuns
@@ -79,7 +81,7 @@ Todos os seletores de DOM ficam em `extension/selectors.js`, cada um com uma lis
 ## Testes
 
 ```
-node --test test/host.test.mjs test/diff.test.mjs
+node --test test/host.test.mjs test/diff.test.mjs test/linkinfo.test.mjs
 ```
 
 Usam `test/fake-claude.mjs`, não o CLI real. (Em Node 24, `node --test test/` tenta carregar a pasta como módulo; use o caminho do arquivo.)
@@ -87,7 +89,7 @@ Usam `test/fake-claude.mjs`, não o CLI real. (Em Node 24, `node --test test/` t
 ## Estrutura
 
 ```
-extension/    manifest, background, content, diff, selectors, opções, icons/
+extension/    manifest, background, content, diff, linkinfo, selectors, opções, icons/
 native-host/  host.js, install.sh, uninstall.sh (run.sh é gerado)
-test/         host.test.mjs, diff.test.mjs, fake-claude.mjs
+test/         host.test.mjs, diff.test.mjs, linkinfo.test.mjs, fake-claude.mjs
 ```

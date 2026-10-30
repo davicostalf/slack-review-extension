@@ -3,6 +3,10 @@
   const DEFAULTS = { myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
   const CONTEXT_LIMIT = 15;
   const SAMPLES_LIMIT = 40;
+  const LINK_WAIT_MS = 4000;
+  const LINK_TEXT_MAX = 60; // a draft with less text than this, once URLs are removed, is carried by its link
+  const LINK_MAX = 2;
+  const SHIMMER_ACCENT = '#d97757';
 
   let bypass = false; // set while we resend a message ourselves
   let current = null; // { token, composer, original, timer }
@@ -37,6 +41,41 @@
       .replace(/:[a-z0-9_+\-]+:/gi, '')
       .replace(/[\p{Extended_Pictographic}‍️\s]/gu, '');
     return rest.length === 0;
+  }
+
+  // ---------- links ----------
+  const URL_RE = /https?:\/\/[^\s<>"']+/g;
+  const normUrl = (u) => { try { return new URL(u.replace(/[.,;:!?)\]}]+$/, '')).href; } catch { return ''; } };
+
+  // URLs worth opening: only when the link carries the message
+  function draftLinks(composer, text) {
+    const found = [];
+    for (const a of composer.querySelectorAll(sel('composerLink'))) {
+      found.push(a.getAttribute('href') || a.getAttribute('data-stringify-link') || '');
+    }
+    for (const m of text.match(URL_RE) || []) found.push(m);
+    const urls = Array.from(new Set(found.map(normUrl)))
+      .filter((u) => u && SlackReviewLinks.isFetchableUrl(u))
+      .slice(0, LINK_MAX);
+    const rest = text.replace(URL_RE, '').replace(/\s+/g, ' ').trim();
+    return rest.length < LINK_TEXT_MAX ? urls : [];
+  }
+
+  // Asks the background to open the links; gives up after LINK_WAIT_MS
+  async function loadLinkInfo(urls) {
+    if (!urls.length) return [];
+    let timer;
+    try {
+      const res = await Promise.race([
+        chrome.runtime.sendMessage({ type: 'link_info', urls }),
+        new Promise((resolve) => { timer = setTimeout(() => resolve([]), LINK_WAIT_MS); })
+      ]);
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // ---------- context ----------
@@ -137,7 +176,7 @@
     closeSession();
     saveSample(text);
     if (text !== original && !replaceText(editor, text)) {
-      showToast('Não consegui colocar o texto no campo. Mensagem não enviada.');
+      showToast(editor, 'Não consegui colocar o texto no campo. Mensagem não enviada.');
       return;
     }
     setTimeout(() => triggerSend(editor), 60);
@@ -147,13 +186,8 @@
   const BASE_CSS = `
     :host { all: initial; }
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    .pill { position: fixed; z-index: 2147483647; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-      max-width: min(460px, 92vw); padding: 6px 12px; border-radius: 16px; font-size: 13px; background: #1d1c1d; color: #fff;
-      box-shadow: 0 2px 10px rgba(0,0,0,.3); }
-    .pill.err { background: #b3261e; }
     button { font: inherit; cursor: pointer; border-radius: 6px; padding: 5px 12px; border: 1px solid #8884; background: transparent; color: inherit; }
     button:disabled { cursor: default; opacity: .45; }
-    .pill button { padding: 2px 10px; border-radius: 999px; border-color: #fff8; color: #fff; font-size: 12px; }
     button.primary { background: #1264a3; border-color: #1264a3; color: #fff; }
     button:focus-visible { outline: 2px solid #1d9bd1; outline-offset: 2px; }
 
@@ -181,6 +215,7 @@
     .hunk:hover .apply, .hunk:focus-within .apply, .hunk .apply:focus-visible { opacity: 1; }
     .hunk.applied ins { text-decoration: none; }
     .hunk .done { margin-left: 4px; font-size: 11px; color: var(--muted); user-select: none; }
+    .msg { margin: 0; padding: 0 12px 8px; font-size: 13px; overflow-wrap: anywhere; }
     .note { margin: 8px 12px 0; padding: 6px 8px; border-radius: 6px; font-size: 12px; background: var(--warn); }
     .pop-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--line); }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -203,75 +238,148 @@
     return e;
   }
 
-  let toastTimer;
-  function showToast(msg) {
-    const { host, root } = makeHost();
-    const pill = el('div', { className: 'pill err', textContent: msg });
-    pill.style.cssText = 'left:50%;bottom:24px;transform:translateX(-50%)';
-    root.appendChild(pill);
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => host.remove(), 5000);
+  // Same look as the suggestion popover; anchored above the composer
+  function anchor(pop, composer) {
+    const place = () => {
+      if (!composer.isConnected) return;
+      const box = composer.closest(sel('composerBox')) || composer;
+      const r = box.getBoundingClientRect();
+      const gap = 8;
+      const cap = window.innerHeight * 0.4;
+      const above = r.top - gap - 8;
+      const below = window.innerHeight - r.bottom - gap - 8;
+      const flip = above < 140 && below > above;
+      pop.style.left = Math.max(8, r.left) + 'px';
+      pop.style.width = Math.min(Math.max(r.width, 280), window.innerWidth - 16) + 'px';
+      pop.style.maxHeight = Math.max(100, Math.min(cap, flip ? below : above)) + 'px';
+      if (flip) { pop.style.top = r.bottom + gap + 'px'; pop.style.bottom = ''; }
+      else { pop.style.bottom = window.innerHeight - r.top + gap + 'px'; pop.style.top = ''; }
+    };
+    const ro = new ResizeObserver(place);
+    ro.observe(composer.closest(sel('composerBox')) || composer);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    place();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
   }
 
-  let noticeHost = null;
-  let noticeTimer;
-  function showNotice(composer, msg) {
-    if (noticeHost) noticeHost.remove();
-    const { host, root } = makeHost();
-    noticeHost = host;
-    const pill = el('div', { className: 'pill err', textContent: msg });
-    pill.setAttribute('role', 'status');
-    root.appendChild(pill);
-    placePill(pill, composer);
-    clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => { host.remove(); if (noticeHost === host) noticeHost = null; }, 4000);
-  }
-
-  function placePill(pill, composer) {
-    const r = composer.getBoundingClientRect();
-    pill.style.left = Math.max(8, r.left) + 'px';
-    pill.style.bottom = Math.max(8, window.innerHeight - r.top + 8) + 'px';
-  }
-
-  function showPill(cur, { error, onSendOriginal }) {
-    removePill(cur);
-    const { host, root } = makeHost();
-    const pill = el('div', { className: 'pill' + (error ? ' err' : '') });
-    pill.setAttribute('role', 'status');
-    pill.append(el('span', { textContent: error || 'Claude revisando…' }));
-    const btn = el('button', { type: 'button', textContent: error ? 'Enviar original' : 'Enviar sem revisar' });
-    btn.addEventListener('click', onSendOriginal);
-    pill.append(btn);
-    if (error) {
-      const close = el('button', { type: 'button', textContent: 'Fechar', title: 'Fechar' });
-      close.addEventListener('click', () => clearCurrent());
-      pill.append(close);
+  // Buttons must not pull focus out of the composer
+  function keepComposerFocus(pop) {
+    pop.addEventListener('mousedown', (e) => { if (e.target.closest && e.target.closest('button')) e.preventDefault(); });
+    for (const t of ['keydown', 'keyup', 'keypress']) {
+      pop.addEventListener(t, (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     }
-    root.appendChild(pill);
-    placePill(pill, cur.composer);
-    const reposition = () => placePill(pill, cur.composer);
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
-    cur.pill = { host, cleanup: () => {
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-    } };
   }
 
-  function removePill(cur) {
-    if (cur && cur.pill) {
-      cur.pill.cleanup();
-      cur.pill.host.remove();
-      cur.pill = null;
+  // One notice or error at a time: { host, owner, timer, cleanup }
+  let bubble = null;
+
+  function closeBubble() {
+    if (!bubble) return;
+    const b = bubble;
+    bubble = null;
+    clearTimeout(b.timer);
+    b.cleanup();
+    b.host.remove();
+  }
+
+  function showBubble(composer, { title, message, actions = [], dismissMs = 0, owner = null, onClose }) {
+    closeBubble();
+    const { host, root } = makeHost();
+    const pop = el('div', { className: 'pop' });
+    pop.setAttribute('role', owner ? 'alert' : 'status');
+    const closeBtn = el('button', { type: 'button', className: 'pop-close', textContent: '×', title: 'Fechar' });
+    closeBtn.setAttribute('aria-label', 'Fechar aviso');
+    closeBtn.addEventListener('click', () => { closeBubble(); if (onClose) onClose(); });
+    pop.append(el('div', { className: 'pop-head' }, [el('h2', { textContent: title }), closeBtn]));
+    pop.append(el('div', { className: 'pop-body' }, [el('p', { className: 'msg', textContent: message })]));
+    if (actions.length) {
+      const foot = el('div', { className: 'pop-foot' });
+      for (const a of actions) {
+        const b = el('button', { type: 'button', className: a.primary ? 'primary' : '', textContent: a.label });
+        b.addEventListener('click', a.onClick);
+        foot.append(b);
+      }
+      pop.append(foot);
     }
+    root.appendChild(pop);
+    keepComposerFocus(pop);
+    const stop = anchor(pop, composer);
+    bubble = { host, owner, cleanup: stop, timer: dismissMs ? setTimeout(closeBubble, dismissMs) : null };
+  }
+
+  const showToast = (composer, msg) => showBubble(composer, { title: 'Não deu certo', message: msg, dismissMs: 5000 });
+  const showNotice = (composer, msg) => showBubble(composer, { title: 'Falta preencher', message: msg, dismissMs: 4000 });
+
+  // ---------- in-place "reviewing" shimmer ----------
+  // The composer text itself animates while a review runs. The attribute is
+  // the only thing we touch on Slack's DOM; one <style> does the rest.
+  const SHIMMER_CSS = `
+    @keyframes claude-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+    [data-claude-reviewing] {
+      background: linear-gradient(90deg, var(--claude-fg) 0%, ${SHIMMER_ACCENT} 40%, var(--claude-fg) 80%) 0 0 / 200% 100%;
+      background-repeat: repeat-x;
+      -webkit-background-clip: text; background-clip: text;
+      animation: claude-shimmer 1.4s linear infinite;
+      caret-color: var(--claude-fg);
+    }
+    [data-claude-reviewing], [data-claude-reviewing] * { color: transparent !important; -webkit-text-fill-color: transparent !important; }
+    [data-claude-reviewing] * { background: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      [data-claude-reviewing] { animation: none; background: none; }
+      [data-claude-reviewing], [data-claude-reviewing] * {
+        color: color-mix(in srgb, var(--claude-fg) 65%, ${SHIMMER_ACCENT}) !important;
+        -webkit-text-fill-color: color-mix(in srgb, var(--claude-fg) 65%, ${SHIMMER_ACCENT}) !important;
+      }
+    }
+  `;
+
+  function ensureShimmerStyle() {
+    if (document.getElementById('claude-review-style')) return;
+    const st = document.createElement('style');
+    st.id = 'claude-review-style';
+    st.textContent = SHIMMER_CSS;
+    (document.head || document.documentElement).appendChild(st);
+  }
+
+  function startShimmer(cur) {
+    ensureShimmerStyle();
+    const c = cur.composer;
+    // Base color is the text's own color, read before it turns transparent
+    c.style.setProperty('--claude-fg', getComputedStyle(c).color);
+    c.setAttribute('data-claude-reviewing', '');
+    const { host, root } = makeHost();
+    const live = el('div', { className: 'sr' });
+    live.setAttribute('aria-live', 'polite');
+    root.appendChild(live);
+    setTimeout(() => { live.textContent = 'Revisando a mensagem'; }, 50);
+    cur.live = host;
+    // Safety net: never leave the text transparent if a path forgets to stop it
+    cur.safety = setTimeout(() => stopShimmer(cur), opts.timeoutSec * 1000 + 2000);
+  }
+
+  // Idempotent; called from every exit path
+  function stopShimmer(cur) {
+    clearTimeout(cur.safety);
+    if (cur.live) { cur.live.remove(); cur.live = null; }
+    cur.composer.removeAttribute('data-claude-reviewing');
+    cur.composer.style.removeProperty('--claude-fg');
   }
 
   function clearCurrent() {
     if (!current) return;
-    clearTimeout(current.timer);
-    removePill(current);
-    current.token = -1;
+    const cur = current;
     current = null;
+    cur.token = -1;
+    clearTimeout(cur.timer);
+    clearInterval(cur.poll);
+    if (cur.observer) cur.observer.disconnect();
+    stopShimmer(cur);
+    if (bubble && bubble.owner === cur) closeBubble();
   }
 
   // ---------- suggestion session + popover ----------
@@ -372,7 +480,7 @@
 
     const writeComposer = (text) => {
       expected = text;
-      if (!replaceText(composer, text)) showToast('Não consegui colocar o texto no campo.');
+      if (!replaceText(composer, text)) showToast(composer, 'Não consegui colocar o texto no campo.');
       placeCaretAtEnd(composer);
       sync();
     };
@@ -435,44 +543,17 @@
 
     closeBtn.addEventListener('click', () => { closePopover(); composer.focus(); });
 
-    // Buttons must not pull focus out of the composer; text stays selectable
-    pop.addEventListener('mousedown', (e) => { if (e.target.closest && e.target.closest('button')) e.preventDefault(); });
-    for (const t of ['keydown', 'keyup', 'keypress']) {
-      pop.addEventListener(t, (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
-    }
-
-    // ---- anchoring ----
-    const place = () => {
-      if (!composer.isConnected) return;
-      const box = composer.closest(sel('composerBox')) || composer;
-      const r = box.getBoundingClientRect();
-      const gap = 8;
-      const cap = window.innerHeight * 0.4;
-      const above = r.top - gap - 8;
-      const below = window.innerHeight - r.bottom - gap - 8;
-      const flip = above < 140 && below > above;
-      pop.style.left = Math.max(8, r.left) + 'px';
-      pop.style.width = Math.min(Math.max(r.width, 280), window.innerWidth - 16) + 'px';
-      pop.style.maxHeight = Math.max(100, Math.min(cap, flip ? below : above)) + 'px';
-      if (flip) { pop.style.top = r.bottom + gap + 'px'; pop.style.bottom = ''; }
-      else { pop.style.bottom = window.innerHeight - r.top + gap + 'px'; pop.style.top = ''; }
-    };
-    const ro = new ResizeObserver(place);
-    ro.observe(composer.closest(sel('composerBox')) || composer);
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
+    keepComposerFocus(pop);
+    const stopAnchor = anchor(pop, composer);
 
     render();
-    place();
     setTimeout(() => { live.textContent = 'Claude tem uma sugestão'; }, 50);
 
     s.pop = {
       host, sync,
       cleanup: () => {
-        ro.disconnect();
+        stopAnchor();
         clearTimeout(copiedTimer);
-        window.removeEventListener('resize', place);
-        window.removeEventListener('scroll', place, true);
       }
     };
   }
@@ -480,30 +561,49 @@
   // ---------- main flow ----------
   async function startReview(composer, original) {
     clearCurrent();
+    closeBubble();
     await getOptions();
-    const cur = { token: ++tokenSeq, composer, original, timer: null, pill: null };
+    const cur = { token: ++tokenSeq, composer, original, timer: null, safety: null, live: null, observer: null, poll: null, failed: false };
     current = cur;
     const hasEntities = !!composer.querySelector(sel('entity'));
     const sendOriginal = () => sendText(composer, original, original);
 
-    showPill(cur, { onSendOriginal: sendOriginal });
+    startShimmer(cur);
+    // Any edit discards the review and ends the shimmer at once
+    const changed = () => {
+      if (current !== cur) return;
+      if (!composer.isConnected || composerText(composer) !== original) clearCurrent();
+    };
+    cur.observer = new MutationObserver(changed);
+    cur.observer.observe(composer, { childList: true, subtree: true, characterData: true });
+    // Channel switch can detach the composer without a mutation inside it
+    cur.poll = setInterval(changed, 500);
+
     const fail = (msg) => {
       if (current !== cur) return;
       clearTimeout(cur.timer);
-      showPill(cur, { error: msg, onSendOriginal: sendOriginal });
+      stopShimmer(cur);
+      cur.failed = true;
+      showBubble(composer, {
+        title: 'Não consegui revisar', message: msg, owner: cur,
+        actions: [{ label: 'Enviar original', primary: true, onClick: sendOriginal }],
+        onClose: () => clearCurrent()
+      });
     };
     cur.timer = setTimeout(() => fail('Tempo esgotado.'), opts.timeoutSec * 1000);
 
     const context = readContext(composer);
-    const samples = await getSamples(context, opts.myName);
+    const [samples, links] = await Promise.all([
+      getSamples(context, opts.myName),
+      loadLinkInfo(draftLinks(composer, original))
+    ]);
     if (current !== cur) return;
 
     let res;
     try {
-      res = await chrome.runtime.sendMessage({
-        type: 'review',
-        payload: { model: opts.model, myName: opts.myName, context, samples, draft: original }
-      });
+      const payload = { model: opts.model, myName: opts.myName, context, samples, draft: original };
+      if (links.length) payload.links = links;
+      res = await chrome.runtime.sendMessage({ type: 'review', payload });
     } catch (e) {
       return fail('Extensão recarregada. Atualize a página do Slack.');
     }
@@ -559,19 +659,30 @@
     closePopover(); // any other text gets a fresh review
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (current && current.composer === composer && current.original === text) return; // already reviewing
+    if (current && !current.failed && current.composer === composer && current.original === text) return; // already reviewing
     startReview(composer, text);
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && session && session.pop) {
+    if (e.key === 'Escape') {
       const path = e.composedPath();
-      if (path.includes(session.pop.host) || path.includes(session.composer)) {
+      if (session && session.pop && (path.includes(session.pop.host) || path.includes(session.composer))) {
         e.preventDefault();
         e.stopPropagation();
         closePopover();
         session.composer.focus();
+        return;
       }
+      // Cancel a running review (or dismiss its error); the text stays for editing
+      if (current && (path.includes(current.composer) || (bubble && path.includes(bubble.host)))) {
+        e.preventDefault();
+        e.stopPropagation();
+        const c = current.composer;
+        clearCurrent();
+        c.focus();
+        return;
+      }
+      if (bubble && (path.includes(bubble.host) || (e.target.closest && e.target.closest(sel('composer'))))) closeBubble();
       return;
     }
     if (e.key !== 'Enter' || e.shiftKey || e.isComposing || bypass) return;

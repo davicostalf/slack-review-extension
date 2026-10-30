@@ -35,6 +35,9 @@ process.stdin.on('end', () => {
     process.stdout.write('this is not json at all');
   } else if (draft.includes('CASE_BADSHAPE')) {
     out({ structured_output: { significant: 'yes' } });
+  } else if (draft.includes('CASE_ECHOLINKS')) {
+    const links = (input.match(/<links>\n([\s\S]*?)\n<\/links>/) || [])[1] || 'NO_LINKS';
+    out({ structured_output: { significant: false, suggestion: links, reason: '' } });
   } else if (draft.includes('CASE_ECHOARGS')) {
     out({ structured_output: { significant: false, suggestion: args.join(' ').slice(0, 80), reason: '' } });
   } else {
