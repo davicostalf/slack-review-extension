@@ -4,6 +4,12 @@ Extensão do Chrome que revisa sua mensagem no Slack web (https://app.slack.com)
 
 O popover de sugestão só aparece quando o Claude acha uma melhoria **significativa**. Nos outros casos a mensagem original é enviada sozinha, sem interrupção. As sugestões seguem o tom da conversa e o seu jeito habitual de escrever.
 
+## Por quê
+
+No trabalho, boa parte do que a gente escreve vai pelo Slack, e quase sempre com pressa. A mensagem sai ambígua, sem o contexto que o leitor precisa (um link sem explicação, um "aquilo que falei") ou mais seca do que a gente queria, e aí vira ida e volta para explicar.
+
+O revisor confere a mensagem antes de sair e só interrompe quando há uma melhora que vale a pena. Ele segue o tom da conversa e o seu jeito de escrever, não corrige estilo nem informalidade, e a decisão de usar a sugestão é sempre sua. Na maioria das mensagens, ele nem aparece.
+
 **ID da extensão (fixo):** `mnjmjomadajemdflfgeeaggadoobokdn`
 
 ## Requisitos
@@ -34,7 +40,7 @@ O `install.sh` também funciona a partir de qualquer outra cópia do repositóri
 
 ## Atualizações
 
-A extensão confere se há versão nova ao abrir o navegador, uma vez por dia e sempre que você abre a página de configurações. Quando há, aparece um **selo "1"** no ícone da extensão. Clique no ícone para abrir as configurações e use o botão **Atualizar** no aviso do topo da página; a extensão se recarrega sozinha. "Verificar atualizações" confere na hora.
+A extensão confere se há versão nova ao abrir o navegador, uma vez por dia e sempre que você abre a página de configurações. Quando há, aparece um **selo "1"** no ícone da extensão. Clique no ícone, depois em **Regras e configurações**, e use o botão **Atualizar** no aviso do topo da página; a extensão se recarrega sozinha. "Verificar atualizações" confere na hora.
 
 Nada é baixado nem executado sem o seu clique: a atualização é um `git pull --ff-only` na pasta de instalação. Se você mexeu em arquivos da pasta, o botão recusa e pede para atualizar com git. Depois de atualizar, recarregue as abas do Slack.
 
@@ -42,6 +48,9 @@ Manualmente: `git -C ~/.claude-slack-review pull` e depois recarregue a extensã
 
 ## Como usar
 
+- **Ícone da extensão:** abre um popup pequeno com o nome da conversa aberta no Slack e a chave **Revisar nesta conversa**. Desligada, as mensagens dessa conversa saem sem revisão nenhuma. Para voltar, ligue a chave de novo (ou use **Ligar de novo** nas configurações).
+- **Peça um ajuste:** no mesmo popup, escreva em texto livre quando ou como quer a revisão ("aqui pode ser mais informal", "não revise mensagens em inglês", "nunca troque 'vcs' por 'vocês'") e clique em **Pedir** (ou ⌘/Ctrl + Enter). O Claude reescreve o pedido como uma regra curta e mostra com o alcance, "Nesta conversa" ou "Em todas as conversas". Só vale depois de **Salvar**; **Ajustar pedido** volta para o texto. Se o pedido for "não revisar aqui", Salvar só desliga a chave da conversa. Cada revisão leva as regras que valem para a conversa, e elas têm prioridade sobre os padrões do revisor.
+- **Onde ficam as regras:** na seção **Regras** das configurações, agrupadas por "Em todas as conversas" e por conversa, junto com a lista de conversas sem revisão. Para remover uma regra, clique no **×** dela. Máximo de 50 regras, guardadas só neste navegador.
 - Escreva e envie normalmente. Ao apertar Enter (ou clicar em enviar), o texto do campo começa a brilhar enquanto o Claude revisa.
 - Sem melhoria significativa: o original é enviado automaticamente, como sempre.
 - Com melhoria significativa: **nada é enviado**. Um popover abre acima do campo (o foco continua no campo, então dá para seguir digitando) com o motivo e a sugestão marcada contra o seu texto: o que sai aparece riscado, o que entra aparece sublinhado e destacado. O texto do popover é selecionável, para copiar qualquer trecho.
@@ -81,7 +90,7 @@ Todos os seletores de DOM ficam em `extension/selectors.js`, cada um com uma lis
 ## Testes
 
 ```
-node --test test/host.test.mjs test/diff.test.mjs test/linkinfo.test.mjs
+node --test test/host.test.mjs test/diff.test.mjs test/linkinfo.test.mjs test/convo.test.mjs
 ```
 
 Usam `test/fake-claude.mjs`, não o CLI real. (Em Node 24, `node --test test/` tenta carregar a pasta como módulo; use o caminho do arquivo.)
@@ -89,7 +98,7 @@ Usam `test/fake-claude.mjs`, não o CLI real. (Em Node 24, `node --test test/` t
 ## Estrutura
 
 ```
-extension/    manifest, background, content, diff, linkinfo, selectors, opções, icons/
+extension/    manifest, background, content, convo, diff, linkinfo, selectors, popup, opções, icons/
 native-host/  host.js, install.sh, uninstall.sh (run.sh é gerado)
-test/         host.test.mjs, diff.test.mjs, linkinfo.test.mjs, fake-claude.mjs
+test/         host.test.mjs, diff.test.mjs, linkinfo.test.mjs, convo.test.mjs, fake-claude.mjs
 ```

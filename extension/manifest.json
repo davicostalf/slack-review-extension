@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Revisor de mensagens do Slack",
   "description": "Revisa sua mensagem no Slack com o Claude Code local antes de enviar.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6ZOe9dnpLfUtOylZ7GOgi2yjTZsKU5ikXvVAedFzgwMLO2fVoEqeF4Z9/tpudOwWF7MbN7E7ZlyPIzOhDwGbU7bESWNpCDBaOxvD/mPkNkthPgSs/yJbgITH9NRDg94+lWElJLZTMz1pB4rf9PJ+NrbeLY+O1bQ61HC0aoG/h8aHAivMdpX1dXRTroUlWHIfx9ffwLjDAnKqKIcOyCZyaJgjRsh/H245zyIxVy4jImMjMNinW2kR55Vwo5x1ygukX5Td5TtVD305fQLUtizHA67YtoupxJX7yh6MZRQGCnF5b8mueW7gIZ9hWJwN0kDpoZ+tKUgdyqT3lOnN9W3fBQIDAQAB",
   "permissions": ["nativeMessaging", "storage", "alarms"],
   "host_permissions": ["https://app.slack.com/*"],
@@ -11,13 +11,14 @@
   "content_scripts": [
     {
       "matches": ["https://app.slack.com/*"],
-      "js": ["selectors.js", "diff.js", "linkinfo.js", "content.js"],
+      "js": ["selectors.js", "convo.js", "diff.js", "linkinfo.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
   "options_page": "options.html",
   "action": {
     "default_title": "Revisor de mensagens do Slack",
+    "default_popup": "popup.html",
     "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
   },
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }

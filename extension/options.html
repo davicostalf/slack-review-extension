@@ -126,6 +126,17 @@
   .banner button { flex: none; padding: 8px 16px; font-size: 14px; }
   @media (max-width: 420px) { .banner { flex-direction: column; align-items: stretch; } }
 
+  /* rules */
+  .group-title { margin: 16px 0 6px; font-size: 13px; font-weight: 600; }
+  .group-title:first-of-type { margin-top: 0; }
+  .rules { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); }
+  .rules li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .rules li + li { border-top: 1px solid var(--border); }
+  .rules .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .rules button.icon { flex: none; width: 28px; height: 28px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; }
+  .rules button.icon:hover { color: var(--err); }
+  #rules-empty { margin: 0; color: var(--muted); font-size: 13px; }
+
   .samples { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .samples p { margin: 0; }
 
@@ -175,6 +186,12 @@
       <input id="myName" type="text" autocomplete="off" placeholder="Como aparece nas suas mensagens" aria-describedby="myName-hint">
       <p class="hint" id="myName-hint">Serve para reconhecer suas mensagens na conversa e seguir o seu jeito de escrever.</p>
     </div>
+  </section>
+
+  <section aria-labelledby="h-rules">
+    <h2 id="h-rules">Regras</h2>
+    <p id="rules-empty">Nenhuma regra ainda. Clique no ícone da extensão numa conversa do Slack para pedir um ajuste.</p>
+    <div id="rules-list"></div>
   </section>
 
   <section>

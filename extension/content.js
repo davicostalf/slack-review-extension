@@ -33,6 +33,54 @@
   getOptions();
   try { chrome.storage.onChanged.addListener(() => getOptions()); } catch {}
 
+  // ---------- conversation, per-conversation switch and rules ----------
+  const RULES_SEND_MAX = 20;
+  // Cached like the options: the send decision is synchronous
+  let store = { disabled: {}, rules: [] };
+  async function loadStore() {
+    try {
+      const { disabledConversations, rules } = await chrome.storage.local.get({ disabledConversations: {}, rules: [] });
+      store = { disabled: disabledConversations || {}, rules: Array.isArray(rules) ? rules : [] };
+    } catch {}
+  }
+  loadStore();
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && (changes.disabledConversations || changes.rules)) loadStore();
+    });
+  } catch {}
+
+  const conversationId = () => SlackReviewConvo.idFromUrl(location.href);
+
+  // { id, name } for the open conversation (a thread still belongs to its channel), or null
+  function getConversation() {
+    const id = conversationId();
+    if (!id) return null;
+    const info = SlackReviewConvo.titleInfo(document.title);
+    const node = q(document, 'conversationName');
+    const domName = node ? norm(node.innerText || node.textContent).replace(/^#\s*/, '') : '';
+    let name;
+    if (info) name = SlackReviewConvo.displayName(info.kind, domName && domName.length <= 80 ? domName : info.name);
+    else name = domName && domName.length <= 80 ? domName : 'Conversa ' + id;
+    return { id, name };
+  }
+
+  // Rules that apply here: all-conversation ones plus this conversation's, newest first
+  function rulesFor(id) {
+    return store.rules
+      .filter((r) => r && typeof r.text === 'string' && (r.scope === 'all' || (r.scope === 'conversation' && r.conversationId === id)))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, RULES_SEND_MAX)
+      .map((r) => r.text);
+  }
+
+  try {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (msg && msg.type === 'get_conversation') sendResponse(getConversation());
+      return false;
+    });
+  } catch {}
+
   // ---------- skip rules ----------
   function onlyEmojiOrLinks(text) {
     const rest = text
@@ -602,6 +650,8 @@
     let res;
     try {
       const payload = { model: opts.model, myName: opts.myName, context, samples, draft: original };
+      const rules = rulesFor(conversationId());
+      if (rules.length) payload.rules = rules;
       if (links.length) payload.links = links;
       res = await chrome.runtime.sendMessage({ type: 'review', payload });
     } catch (e) {
@@ -629,6 +679,10 @@
     if (!composer || !composer.isConnected) return;
     const text = composerText(composer);
     if (!text) return;
+
+    // Review turned off for this conversation: the send goes through untouched
+    const here = conversationId();
+    if (here && store.disabled[here]) return;
 
     // Option+Enter: send without review
     if (e.type === 'keydown' && e.altKey) {

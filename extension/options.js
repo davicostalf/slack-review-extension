@@ -146,6 +146,65 @@ $('copy-cmd').addEventListener('click', async () => {
   setTimeout(() => ($('copy-cmd').textContent = 'Copiar'), 1500);
 });
 
+/* rules */
+const tag = (name, props = {}, kids = []) => {
+  const e = document.createElement(name);
+  Object.assign(e, props);
+  for (const k of kids) e.append(k);
+  return e;
+};
+
+async function renderRules() {
+  const { rules = [], disabledConversations = {} } = await chrome.storage.local.get(['rules', 'disabledConversations']);
+  const box = $('rules-list');
+  box.textContent = '';
+  const off = Object.entries(disabledConversations);
+  $('rules-empty').hidden = rules.length > 0 || off.length > 0;
+
+  // Global rules first, then one group per conversation (named by its newest rule)
+  const groups = [{ title: 'Em todas as conversas', items: rules.filter((r) => r.scope === 'all') }];
+  const byConv = new Map();
+  for (const r of rules.filter((x) => x.scope === 'conversation')) {
+    if (!byConv.has(r.conversationId)) byConv.set(r.conversationId, { title: r.conversationName || r.conversationId, items: [] });
+    byConv.get(r.conversationId).items.push(r);
+  }
+  groups.push(...byConv.values());
+
+  for (const g of groups) {
+    if (!g.items.length) continue;
+    const list = tag('ul', { className: 'rules' });
+    for (const r of g.items) {
+      const rm = tag('button', { type: 'button', className: 'icon', textContent: '×', title: 'Remover regra' });
+      rm.setAttribute('aria-label', 'Remover regra');
+      rm.addEventListener('click', async () => {
+        const cur = (await chrome.storage.local.get({ rules: [] })).rules;
+        await chrome.storage.local.set({ rules: cur.filter((x) => x.id !== r.id) });
+      });
+      list.append(tag('li', {}, [tag('span', { className: 'text', textContent: r.text }), rm]));
+    }
+    box.append(tag('h3', { className: 'group-title', textContent: g.title }), list);
+  }
+
+  if (off.length) {
+    const list = tag('ul', { className: 'rules' });
+    for (const [id, name] of off) {
+      const on = tag('button', { type: 'button', className: 'link', textContent: 'Ligar de novo' });
+      on.setAttribute('aria-label', 'Ligar de novo a revisão em ' + name);
+      on.addEventListener('click', async () => {
+        const cur = (await chrome.storage.local.get({ disabledConversations: {} })).disabledConversations;
+        delete cur[id];
+        await chrome.storage.local.set({ disabledConversations: cur });
+      });
+      list.append(tag('li', {}, [tag('span', { className: 'text', textContent: name }), on]));
+    }
+    box.append(tag('h3', { className: 'group-title', textContent: 'Conversas sem revisão' }), list);
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes.rules || changes.disabledConversations)) renderRules();
+});
+
 /* version / updates */
 const CURRENT = chrome.runtime.getManifest().version;
 
@@ -207,6 +266,7 @@ async function loadUpdate() {
 }
 
 load();
+renderRules();
 check();
 // Show the last known result right away, then ask the repo
 loadUpdate().then(checkUpdate);

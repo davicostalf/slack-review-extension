@@ -91,6 +91,17 @@ async function handleLinkInfo(urls) {
   }
 }
 
+// Same cached-failure rule as reviews, so a missing login answers at once
+async function handleInterpret(msg) {
+  const block = await getBlock();
+  if (block) return { error: block.error, code: block.code, cached: true };
+  const res = await callHost({ type: 'interpret_rule', request: msg.request, conversation: msg.conversation, model: msg.model });
+  if (res.error && BLOCKING_CODES.includes(res.code)) {
+    await chrome.storage.local.set({ block: { until: Date.now() + BLOCK_MS, error: res.error, code: res.code } });
+  }
+  return res;
+}
+
 async function handlePing(model) {
   const res = await callHost({ type: 'ping', model });
   // A fresh check resets the cached failure
@@ -139,12 +150,12 @@ function scheduleChecks() {
 }
 
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === UPDATE_ALARM) handleCheckUpdate(); });
-chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 chrome.runtime.onStartup.addListener(() => { scheduleChecks(); handleCheckUpdate(); });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg) return false;
   if (msg.type === 'review') handleReview(msg.payload).then(sendResponse);
+  else if (msg.type === 'interpret_rule') handleInterpret(msg).then(sendResponse);
   else if (msg.type === 'link_info') handleLinkInfo(msg.urls).then(sendResponse);
   else if (msg.type === 'ping') handlePing(msg.model).then(sendResponse);
   else if (msg.type === 'check_update') handleCheckUpdate().then(sendResponse);

@@ -50,6 +50,12 @@ globalThis.SLACK_REVIEW_SELECTORS = {
     'a[href^="http"]',
     'a[data-stringify-link]'
   ],
+  // Header of the open conversation; scoped so the sidebar's entries don't match
+  conversationName: [
+    '.p-view_header [data-qa="channel_name"]',
+    '.p-view_header__channel_title',
+    '[data-qa="channel_header"] [data-qa="channel_name"]'
+  ],
   entity: [
     '.ql-mention',
     '[data-stringify-type="mention"]',
