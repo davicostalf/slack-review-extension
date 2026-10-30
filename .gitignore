@@ -1,0 +1,6 @@
+native-host/run.sh
+*.pem
+*.key
+*.der
+node_modules/
+.DS_Store

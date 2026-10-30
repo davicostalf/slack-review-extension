@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisor do Slack</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --surface: #f7f7f8;
+    --text: #1d1c1d;
+    --muted: #616061;
+    --border: #e1e1e3;
+    --accent: #1264a3;
+    --ok: #007a5a;
+    --warn: #b35900;
+    --err: #c0392b;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1d21;
+      --surface: #222529;
+      --text: #e8e8e8;
+      --muted: #9a9b9d;
+      --border: #35373b;
+      --accent: #4ea4f0;
+      --ok: #2bac76;
+      --warn: #e8a33d;
+      --err: #f0645a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 48px 16px 64px; }
+
+  header { margin-bottom: 32px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); }
+
+  section { padding: 24px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .hint { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+  /* status */
+  .checks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); }
+  .checks li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .checks li + li { border-top: 1px solid var(--border); }
+  .checks .label { flex: 1; }
+  .checks .value { color: var(--muted); font-size: 13px; text-align: right; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex: none; }
+  [data-state="ok"] .dot { background: var(--ok); }
+  [data-state="err"] .dot { background: var(--err); }
+  [data-state="err"] .value { color: var(--err); }
+  .status-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  #st-msg { margin: 0; font-size: 13px; color: var(--muted); }
+  #st-msg[data-tone="err"] { color: var(--err); }
+
+  /* fields */
+  .field + .field { margin-top: 20px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .req { font-weight: 500; font-size: 12px; color: var(--warn); margin-left: 6px; }
+  input, select {
+    width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  input[aria-invalid="true"] { border-color: var(--warn); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
+
+  details summary {
+    cursor: pointer; list-style: none; font-size: 13px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "▸"; display: inline-block; width: 14px; transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details[open] summary { margin-bottom: 16px; }
+
+  button {
+    font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
+    color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  }
+  button:hover { background: var(--surface); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.link { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; }
+  button.link:hover { color: var(--text); }
+  button.danger:hover { color: var(--err); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent); filter: brightness(1.1); }
+
+  /* install command */
+  .cmd { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  .cmd code { flex: 1; min-width: 0; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; user-select: all; }
+  .cmd button { flex: none; }
+
+  /* version */
+  .version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .version-row p { margin: 0; }
+  #up-msg { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+  #up-msg[data-tone="err"] { color: var(--err); }
+
+  .samples { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .samples p { margin: 0; }
+
+  #saved {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    padding: 6px 12px; border-radius: 6px; font-size: 13px;
+    background: var(--text); color: var(--bg); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #saved.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Revisor de mensagens do Slack</h1>
+    <p>O Claude revisa sua mensagem antes de enviar e só interrompe quando há algo que vale melhorar.</p>
+  </header>
+
+  <section aria-labelledby="h-conn">
+    <h2 id="h-conn">Conexão</h2>
+    <ul class="checks">
+      <li id="row-host"><span class="dot" aria-hidden="true"></span><span class="label">Conector local</span><span class="value">verificando…</span></li>
+      <li id="row-cli"><span class="dot" aria-hidden="true"></span><span class="label">Claude Code</span><span class="value">verificando…</span></li>
+      <li id="row-login"><span class="dot" aria-hidden="true"></span><span class="label">Login</span><span class="value">verificando…</span></li>
+    </ul>
+    <div class="status-foot">
+      <p id="st-msg" role="status"></p>
+      <button id="check" type="button">Verificar de novo</button>
+    </div>
+    <div class="cmd" id="install-cmd" hidden>
+      <code id="install-code">git clone https://github.com/davicostalf/slack-review-extension ~/.claude-slack-review &amp;&amp; ~/.claude-slack-review/native-host/install.sh</code>
+      <button id="copy-cmd" type="button">Copiar</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-you">
+    <h2 id="h-you">Você</h2>
+    <div class="field">
+      <label for="myName">Seu nome no Slack <span class="req" id="myName-req">necessário</span></label>
+      <input id="myName" type="text" autocomplete="off" placeholder="Como aparece nas suas mensagens" aria-describedby="myName-hint">
+      <p class="hint" id="myName-hint">Serve para reconhecer suas mensagens na conversa e seguir o seu jeito de escrever.</p>
+    </div>
+  </section>
+
+  <section>
+    <details id="advanced">
+      <summary>Ajustes opcionais</summary>
+      <div class="field">
+        <label for="model">Modelo</label>
+        <select id="model" aria-describedby="model-hint">
+          <option value="claude-sonnet-5-5">Sonnet 5.5 (padrão)</option>
+          <option value="claude-haiku-5-5">Haiku 5.5 (mais rápido)</option>
+          <option value="claude-opus-5-5">Opus 5.5 (mais cuidadoso, mais lento)</option>
+        </select>
+        <p class="hint" id="model-hint">Usa o seu plano do Claude Code.</p>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="minChars">Tamanho mínimo</label>
+          <input id="minChars" type="number" min="0" inputmode="numeric" aria-describedby="minChars-hint">
+          <p class="hint" id="minChars-hint">Caracteres. Abaixo disso, envia sem revisar.</p>
+        </div>
+        <div>
+          <label for="timeoutSec">Tempo limite</label>
+          <input id="timeoutSec" type="number" min="5" max="55" inputmode="numeric" aria-describedby="timeoutSec-hint">
+          <p class="hint" id="timeoutSec-hint">Segundos, entre 5 e 55.</p>
+        </div>
+      </div>
+      <div class="field">
+        <button id="reset" type="button" class="link">Restaurar padrões</button>
+      </div>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-samples">
+    <h2 id="h-samples">Seu estilo</h2>
+    <div class="samples">
+      <p><span id="count">0</span> mensagens suas guardadas neste navegador como referência de estilo.</p>
+      <button id="clear" type="button" class="link danger">Limpar</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-version">
+    <h2 id="h-version">Versão</h2>
+    <div class="version-row">
+      <p id="ver-now">Versão</p>
+      <button id="update" type="button" class="primary" hidden>Atualizar</button>
+    </div>
+    <p id="up-msg" role="status"></p>
+    <p class="hint"><button id="check-update" type="button" class="link">Verificar atualizações</button></p>
+  </section>
+</main>
+<div id="saved" role="status" aria-live="polite">Salvo</div>
+<script src="options.js"></script>
+</body>
+</html>
