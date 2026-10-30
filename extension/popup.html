@@ -57,6 +57,15 @@
 
   .ask { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
   .ask label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .scope {
+    display: flex; gap: 2px; padding: 2px; margin-bottom: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .scope label { flex: 1; margin: 0; font-weight: 500; font-size: 13px; text-align: center; padding: 4px 8px; border-radius: 4px; cursor: pointer; color: var(--muted); }
+  .scope input { position: absolute; opacity: 0; pointer-events: none; }
+  .scope label:has(input:checked) { background: var(--bg); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
+  .scope label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #reload-note { margin-top: 8px; }
   textarea {
     width: 100%; padding: 8px 10px; font: inherit; color: var(--text); resize: vertical;
     background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
@@ -94,10 +103,15 @@
       <input id="toggle" type="checkbox" role="switch">
     </div>
     <p class="muted" id="not-slack" hidden>Abra uma conversa no Slack para ligar ou desligar a revisão nela.</p>
+    <p class="muted" id="reload-note" hidden>Recarregue esta aba do Slack para a revisão funcionar nela.</p>
   </section>
 
   <section class="ask" aria-label="Pedir um ajuste">
     <label for="request">Peça um ajuste</label>
+    <div class="scope" id="scope" role="radiogroup" aria-label="O ajuste vale para" hidden>
+      <label><input type="radio" name="scope" value="conversation" checked>Nesta conversa</label>
+      <label><input type="radio" name="scope" value="all">Em todas</label>
+    </div>
     <textarea id="request" rows="3" maxlength="500" placeholder="Ex.: aqui pode ser mais informal · não revise mensagens em inglês · nunca troque 'vcs' por 'vocês'"></textarea>
     <div class="actions"><button id="ask" type="button" class="primary">Pedir</button></div>
 
@@ -112,6 +126,7 @@
   </section>
 
   <footer><button id="options" type="button" class="link">Regras e configurações</button></footer>
+<script src="convo.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

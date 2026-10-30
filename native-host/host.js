@@ -91,7 +91,7 @@ Você recebe o <pedido> (texto livre da pessoa) e, se houver, a <conversa_atual>
 
 kind:
 - off_here: a pessoa não quer revisão nesta conversa (ex.: "não revise aqui", "desliga nesse canal").
-- rule: um ajuste de quando ou como revisar. Em text, reescreva o pedido como uma instrução curta e clara para o revisor, em português do Brasil, em uma linha, com no máximo 140 caracteres. Exemplos: "Tom informal; não corrigir gírias." / "Não revisar mensagens em inglês." / "Manter 'vcs' como está."
+- rule: um ajuste de quando ou como revisar. Em text, reescreva o pedido como uma instrução curta e clara para o revisor, em português do Brasil, em uma linha, com no máximo 140 caracteres. Não cite onde a regra vale ("aqui", "neste canal", "em todas"): a pessoa escolhe o alcance à parte. Exemplos: "Tom informal; não corrigir gírias." / "Não revisar mensagens em inglês." / "Manter 'vcs' como está."
 - not_about_review: o pedido não é sobre quando ou como revisar mensagens. Em message, uma frase curta em português do Brasil dizendo o que dá para pedir.
 
 scope:

@@ -10,16 +10,24 @@ function status(text, tone = '') {
   $('status').dataset.tone = tone;
 }
 
-// No receiver (not Slack, or a tab opened before install) counts as "not Slack"
+let stale = false;     // Slack tab whose content script is gone (opened before an update)
+
+// The tab's URL and title identify the conversation on their own; the content
+// script only refines the name. No answer from it means the tab needs a reload.
 async function getConversation() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || tab.id == null) return null;
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get_conversation' });
-    return res && res.id && res.name ? res : null;
-  } catch {
-    return null;
-  }
+  let tab;
+  try { [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); } catch { return null; }
+  if (!tab || tab.id == null) return null;
+  const id = SlackReviewConvo.idFromUrl(tab.url || '');
+  if (!id) return null;
+  let live = null;
+  try { live = await chrome.tabs.sendMessage(tab.id, { type: 'get_conversation' }); } catch { stale = true; }
+  const name = (live && live.id === id && live.name) || SlackReviewConvo.nameFromTitle(tab.title) || 'Conversa atual';
+  return { id, name };
+}
+
+function scope() {
+  return conv ? document.querySelector('input[name="scope"]:checked').value : 'all';
 }
 
 async function readDisabled() {
@@ -46,14 +54,24 @@ function clearResult() {
   $('result').hidden = true;
 }
 
+// The scope selector decides where a rule applies, not Claude
 function showResult(res) {
   pending = res;
-  const scope = res.scope === 'conversation' ? 'Nesta conversa: ' : 'Em todas as conversas: ';
-  if (res.kind === 'rule') $('result-text').textContent = scope + res.text;
-  else if (res.kind === 'off_here') $('result-text').textContent = 'Desligar a revisão nesta conversa.';
-  else $('result-text').textContent = res.message;
-  $('result-actions').hidden = res.kind === 'not_about_review';
+  const all = scope() === 'all';
+  let text = res.message;
+  let canSave = res.kind !== 'not_about_review';
+  if (res.kind === 'rule') text = (all ? 'Em todas as conversas: ' : 'Nesta conversa: ') + res.text;
+  else if (res.kind === 'off_here' && all) {
+    text = 'Para parar de revisar em todas as conversas, desative a extensão em chrome://extensions.';
+    canSave = false;
+  } else if (res.kind === 'off_here') text = 'Desligar a revisão nesta conversa.';
+  $('result-text').textContent = text;
+  $('result-actions').hidden = !canSave;
   $('result').hidden = false;
+}
+
+for (const r of document.querySelectorAll('input[name="scope"]')) {
+  r.addEventListener('change', () => { if (pending) showResult(pending); });
 }
 
 async function ask() {
@@ -79,6 +97,7 @@ async function ask() {
 async function save() {
   const res = pending;
   if (!res || res.kind === 'not_about_review') return;
+  if (res.kind === 'off_here' && scope() === 'all') return;
   if (res.kind === 'off_here') {
     if (!conv) return;
     const disabled = await readDisabled();
@@ -91,7 +110,7 @@ async function save() {
     if (rules.length >= MAX_RULES) {
       return status('Limite de ' + MAX_RULES + ' regras. Remova alguma em "Regras e configurações".', 'err');
     }
-    const local = res.scope === 'conversation' && conv;
+    const local = scope() === 'conversation' && conv;
     rules.push({
       id: crypto.randomUUID(),
       scope: local ? 'conversation' : 'all',
@@ -128,6 +147,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
   $('not-slack').hidden = !!conv;
   $('conv-name').hidden = !conv;
   $('switch-row').hidden = !conv;
+  $('scope').hidden = !conv;
+  $('reload-note').hidden = !(conv && stale);
   if (conv) {
     $('conv-name').textContent = conv.name;
     await showToggle();
