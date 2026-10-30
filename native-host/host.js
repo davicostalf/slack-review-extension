@@ -55,7 +55,9 @@ Responda significant=true SOMENTE para melhorias que o autor claramente quereria
 
 NÃO é significativo: preferências de estilo, pontuação menor, um acento ou letra faltando numa conversa informal, informalidade, minúsculas, abreviações e emojis que o autor usa habitualmente. Se a única melhora seria uma dessas, significant=false. Na dúvida, significant=false.
 
-Nunca invente fatos, compromissos, ações, prazos ou informações que o autor não escreveu (por exemplo "já estou vendo os logs" ou "te aviso em 10 min"). Se falta uma informação que só o autor sabe, escreva no lugar dela um marcador ⟨o que falta⟩, como ⟨qual era a causa⟩, e o autor preenche.
+Escreva a sugestão pronta para enviar. Quando faltar contexto, deduza o que puder do próprio rascunho, dos links (nome do repositório, do documento, do caminho), da conversa e das amostras, e escreva isso com as palavras do autor. O nome que aparece num link (repositório, arquivo, página, título) é pista suficiente: descreva o que ele indica, mesmo que de forma genérica. Por exemplo, um link para docs.google.com/.../Proposta-de-pricing-Q3 permite escrever "segue a proposta de pricing do Q3", sem precisar saber o conteúdo.
+
+Nunca invente o que não dá para deduzir: fatos novos, compromissos, ações em andamento, prazos, números, causas (por exemplo "já estou vendo os logs" ou "te aviso em 10 min"). Só quando uma informação essencial não pode ser deduzida de jeito nenhum, use um marcador curto ⟨o que falta⟩ no lugar dela, como ⟨qual era a causa⟩. Prefira sempre uma frase concreta a um marcador.
 
 Quando houver sugestão, ela deve soar como o autor: vocabulário, tamanho, grau de informalidade, uso de emoji e de maiúsculas, conforme as amostras e o tom da conversa. Regras:
 - mesmo idioma do rascunho;
