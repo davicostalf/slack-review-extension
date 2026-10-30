@@ -34,7 +34,7 @@ O `install.sh` também funciona a partir de qualquer outra cópia do repositóri
 
 ## Atualizações
 
-A extensão confere se há versão nova ao abrir o navegador e uma vez por dia. Quando há, aparece um **selo "1"** no ícone da extensão. Clique no ícone para abrir as configurações e use o botão **Atualizar** na seção **Versão**; a extensão se recarrega sozinha. "Verificar atualizações" confere na hora.
+A extensão confere se há versão nova ao abrir o navegador, uma vez por dia e sempre que você abre a página de configurações. Quando há, aparece um **selo "1"** no ícone da extensão. Clique no ícone para abrir as configurações e use o botão **Atualizar** na seção **Versão**; a extensão se recarrega sozinha. "Verificar atualizações" confere na hora.
 
 Nada é baixado nem executado sem o seu clique: a atualização é um `git pull --ff-only` na pasta de instalação. Se você mexeu em arquivos da pasta, o botão recusa e pede para atualizar com git. Depois de atualizar, recarregue as abas do Slack.
 

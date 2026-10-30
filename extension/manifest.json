@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Revisor de mensagens do Slack",
   "description": "Revisa sua mensagem no Slack com o Claude Code local antes de enviar.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6ZOe9dnpLfUtOylZ7GOgi2yjTZsKU5ikXvVAedFzgwMLO2fVoEqeF4Z9/tpudOwWF7MbN7E7ZlyPIzOhDwGbU7bESWNpCDBaOxvD/mPkNkthPgSs/yJbgITH9NRDg94+lWElJLZTMz1pB4rf9PJ+NrbeLY+O1bQ61HC0aoG/h8aHAivMdpX1dXRTroUlWHIfx9ffwLjDAnKqKIcOyCZyaJgjRsh/H245zyIxVy4jImMjMNinW2kR55Vwo5x1ygukX5Td5TtVD305fQLUtizHA67YtoupxJX7yh6MZRQGCnF5b8mueW7gIZ9hWJwN0kDpoZ+tKUgdyqT3lOnN9W3fBQIDAQAB",
   "permissions": ["nativeMessaging", "storage", "alarms"],
   "host_permissions": ["https://app.slack.com/*"],

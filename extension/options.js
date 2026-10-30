@@ -166,4 +166,5 @@ async function loadUpdate() {
 
 load();
 check();
-loadUpdate();
+// Show the last known result right away, then ask the repo
+loadUpdate().then(checkUpdate);
