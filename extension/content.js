@@ -1,6 +1,7 @@
 (() => {
   const S = globalThis.SLACK_REVIEW_SELECTORS;
-  const DEFAULTS = { enabled: true, myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
+  // trigger: 'send' reviews on Enter and sends; 'shortcut' reviews only on ⌥+Enter and never sends
+  const DEFAULTS = { enabled: true, trigger: 'send', myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
   const CONTEXT_LIMIT = 15;
   const SAMPLES_LIMIT = 40;
   const LINK_WAIT_MS = 4000;
@@ -618,7 +619,7 @@
   }
 
   // ---------- main flow ----------
-  async function startReview(composer, original) {
+  async function startReview(composer, original, { reviewOnly = false } = {}) {
     clearCurrent();
     closeBubble();
     await getOptions();
@@ -645,7 +646,7 @@
       cur.failed = true;
       showBubble(composer, {
         title: 'Não consegui revisar', message: msg, owner: cur,
-        actions: [{ label: 'Enviar original', primary: true, onClick: sendOriginal }],
+        actions: reviewOnly ? [] : [{ label: 'Enviar original', primary: true, onClick: sendOriginal }],
         onClose: () => clearCurrent()
       });
     };
@@ -677,12 +678,30 @@
     if (!composer.isConnected || composerText(composer) !== original) return clearCurrent();
 
     if (!res.significant || !res.suggestion || norm(res.suggestion) === norm(original)) {
-      return sendText(composer, original, original);
+      if (!reviewOnly) return sendText(composer, original, original);
+      clearCurrent();
+      return showBubble(composer, { title: '✓ Nada a melhorar', message: 'Pode enviar com Enter.', dismissMs: 3000 });
     }
 
     // Nothing is sent: the user decides what goes into the composer
     clearCurrent();
     openPopover(composer, { original, suggestion: res.suggestion, reason: res.reason || '', hasEntities });
+  }
+
+  // "Só quando eu pedir": Enter is Slack's own send; ⌥+Enter reviews and never sends
+  function handleShortcutMode(e, composer, text) {
+    const shortcut = e.type === 'keydown' && e.altKey;
+    if (!shortcut) {
+      if (!PLACEHOLDER.test(text)) return closeSession();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return showNotice(composer, 'Preencha ou apague os trechos entre ⟨ ⟩ antes de enviar.');
+    }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    closePopover();
+    if (current && !current.failed && current.composer === composer && current.original === text) return;
+    startReview(composer, text, { reviewOnly: true });
   }
 
   function handleSendAttempt(e, composer) {
@@ -698,6 +717,8 @@
     // Review turned off for this conversation: the send goes through untouched
     const here = conversationId();
     if (here && store.disabled[here]) return;
+
+    if (opts.trigger === 'shortcut') return handleShortcutMode(e, composer, text);
 
     // Option+Enter: send without review
     if (e.type === 'keydown' && e.altKey) {

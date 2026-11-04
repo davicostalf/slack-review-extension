@@ -22,9 +22,23 @@ function fill(o) {
   syncRequired();
 }
 
+// Saved on its own: "Restaurar padrões" covers only the optional settings
+async function loadTrigger() {
+  const { trigger } = await chrome.storage.sync.get({ trigger: 'send' });
+  const r = document.querySelector(`input[name="trigger"][value="${trigger === 'shortcut' ? 'shortcut' : 'send'}"]`);
+  r.checked = true;
+}
+for (const r of document.querySelectorAll('input[name="trigger"]')) {
+  r.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ trigger: r.value });
+    flashSaved();
+  });
+}
+
 async function load() {
   const o = await chrome.storage.sync.get(DEFAULTS);
   fill(o);
+  await loadTrigger();
   // The browser's permission is the source of truth for the links setting
   const links = await hasLinksPermission();
   $('links').checked = links;
