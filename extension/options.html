@@ -88,6 +88,7 @@
   .choice input { width: auto; margin: 3px 0 0; accent-color: var(--accent); }
   .choice strong { display: block; font-weight: 600; }
   .choice .hint { display: block; margin-top: 2px; }
+  .choice .tag { margin-left: 6px; font-size: 12px; font-weight: 500; color: var(--accent); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
 
@@ -168,7 +169,7 @@
   </div>
   <header>
     <h1>Revisor de mensagens do Slack</h1>
-    <p>O Claude revisa sua mensagem antes de enviar e só interrompe quando há algo que vale melhorar.</p>
+    <p>O Claude revisa sua mensagem no Slack e só sugere mudanças quando há algo que vale melhorar.</p>
   </header>
 
   <section aria-labelledby="h-conn">
@@ -199,16 +200,17 @@
 
   <section aria-labelledby="h-when">
     <h2 id="h-when">Quando revisar</h2>
+    <p class="hint" id="when-intro" hidden style="margin: 0 0 12px">Escolha como quer usar. Dá para trocar a qualquer momento.</p>
     <div class="choices" role="radiogroup" aria-labelledby="h-when">
+      <label class="choice">
+        <input type="radio" name="trigger" value="shortcut">
+        <span><strong>Só quando eu pedir <span class="tag">recomendado</span></strong>
+          <span class="hint">Enter envia como sempre. ⌥+Enter revisa sem enviar: mostra a sugestão ou avisa que não há nada a melhorar.</span></span>
+      </label>
       <label class="choice">
         <input type="radio" name="trigger" value="send">
         <span><strong>Ao enviar</strong>
-          <span class="hint">Enter revisa e envia; só interrompe se houver algo a melhorar. ⌥+Enter envia sem revisar.</span></span>
-      </label>
-      <label class="choice">
-        <input type="radio" name="trigger" value="shortcut">
-        <span><strong>Só quando eu pedir</strong>
-          <span class="hint">Enter envia como sempre. ⌥+Enter revisa sem enviar: mostra a sugestão ou avisa que não há nada a melhorar.</span></span>
+          <span class="hint">Enter revisa antes de enviar e só interrompe se houver algo a melhorar. Cada envio espera alguns segundos. ⌥+Enter envia sem revisar.</span></span>
       </label>
     </div>
   </section>

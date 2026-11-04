@@ -169,8 +169,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return true;
 });
 
-chrome.runtime.onInstalled.addListener((d) => {
-  if (d.reason === 'install') chrome.runtime.openOptionsPage();
+chrome.runtime.onInstalled.addListener(async (d) => {
+  // First run lands on the settings with the "Quando revisar" choice first
+  if (d.reason === 'install') chrome.tabs.create({ url: chrome.runtime.getURL('options.html#comecar') });
+  // Reviewing on Enter was the default before 0.5.1: keep it for anyone who never chose
+  if (d.reason === 'update') {
+    const { trigger } = await chrome.storage.sync.get('trigger');
+    if (!trigger) await chrome.storage.sync.set({ trigger: 'send' });
+  }
   scheduleChecks();
   handleCheckUpdate();
 });

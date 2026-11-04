@@ -24,9 +24,16 @@ function fill(o) {
 
 // Saved on its own: "Restaurar padrões" covers only the optional settings
 async function loadTrigger() {
-  const { trigger } = await chrome.storage.sync.get({ trigger: 'send' });
-  const r = document.querySelector(`input[name="trigger"][value="${trigger === 'shortcut' ? 'shortcut' : 'send'}"]`);
+  const { trigger } = await chrome.storage.sync.get({ trigger: 'shortcut' });
+  const r = document.querySelector(`input[name="trigger"][value="${trigger === 'send' ? 'send' : 'shortcut'}"]`);
   r.checked = true;
+}
+
+// First run: the mode choice comes right after the header
+if (location.hash === '#comecar') {
+  const when = document.querySelector('section[aria-labelledby="h-when"]');
+  document.querySelector('header').after(when);
+  $('when-intro').hidden = false;
 }
 for (const r of document.querySelectorAll('input[name="trigger"]')) {
   r.addEventListener('change', async () => {

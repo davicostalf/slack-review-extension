@@ -1,7 +1,7 @@
 (() => {
   const S = globalThis.SLACK_REVIEW_SELECTORS;
   // trigger: 'send' reviews on Enter and sends; 'shortcut' reviews only on ⌥+Enter and never sends
-  const DEFAULTS = { enabled: true, trigger: 'send', myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
+  const DEFAULTS = { enabled: true, trigger: 'shortcut', myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
   const CONTEXT_LIMIT = 15;
   const SAMPLES_LIMIT = 40;
   const LINK_WAIT_MS = 4000;
