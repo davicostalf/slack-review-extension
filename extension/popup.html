@@ -55,6 +55,8 @@
   input[role="switch"]:checked { background: var(--accent); }
   input[role="switch"]:checked::after { transform: translateX(14px); }
 
+  .global { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .global .switch-row { margin-top: 0; font-weight: 600; }
   .ask { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
   .ask label { display: block; font-weight: 600; margin-bottom: 6px; }
   .scope {
@@ -96,7 +98,14 @@
 </style>
 </head>
 <body>
-  <section aria-label="Esta conversa">
+  <section class="global" aria-label="Revisor">
+    <div class="switch-row">
+      <label for="global-toggle">Revisor ligado</label>
+      <input id="global-toggle" type="checkbox" role="switch" checked>
+    </div>
+  </section>
+
+  <section aria-label="Esta conversa" id="conv-section">
     <p id="conv-name" hidden></p>
     <div class="switch-row" id="switch-row" hidden>
       <label for="toggle">Revisar nesta conversa</label>

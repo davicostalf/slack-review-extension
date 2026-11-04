@@ -30,6 +30,18 @@ function scope() {
   return conv ? document.querySelector('input[name="scope"]:checked').value : 'all';
 }
 
+// Off everywhere: the conversation switch no longer means anything, so hide it
+async function showGlobal() {
+  const { enabled } = await chrome.storage.sync.get({ enabled: true });
+  $('global-toggle').checked = enabled !== false;
+  $('conv-section').hidden = enabled === false;
+}
+
+$('global-toggle').addEventListener('change', async () => {
+  await chrome.storage.sync.set({ enabled: $('global-toggle').checked });
+  showGlobal();
+});
+
 async function readDisabled() {
   const { disabledConversations } = await chrome.storage.local.get({ disabledConversations: {} });
   return disabledConversations || {};
@@ -62,7 +74,7 @@ function showResult(res) {
   let canSave = res.kind !== 'not_about_review';
   if (res.kind === 'rule') text = (all ? 'Em todas as conversas: ' : 'Nesta conversa: ') + res.text;
   else if (res.kind === 'off_here' && all) {
-    text = 'Para parar de revisar em todas as conversas, desative a extensão em chrome://extensions.';
+    text = 'Para parar de revisar em todas as conversas, use a chave "Revisor ligado" no topo.';
     canSave = false;
   } else if (res.kind === 'off_here') text = 'Desligar a revisão nesta conversa.';
   $('result-text').textContent = text;
@@ -143,6 +155,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 (async function init() {
+  await showGlobal();
   conv = await getConversation();
   $('not-slack').hidden = !!conv;
   $('conv-name').hidden = !conv;

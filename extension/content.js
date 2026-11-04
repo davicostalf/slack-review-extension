@@ -1,6 +1,6 @@
 (() => {
   const S = globalThis.SLACK_REVIEW_SELECTORS;
-  const DEFAULTS = { myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
+  const DEFAULTS = { enabled: true, myName: '', model: 'claude-sonnet-5-5', minChars: 15, timeoutSec: 30 };
   const CONTEXT_LIMIT = 15;
   const SAMPLES_LIMIT = 40;
   const LINK_WAIT_MS = 4000;
@@ -32,6 +32,17 @@
   }
   getOptions();
   try { chrome.storage.onChanged.addListener(() => getOptions()); } catch {}
+
+  // After an update or reload of the extension this script keeps running in
+  // already-open tabs but can no longer reach it. Then it must get out of the way.
+  const alive = () => { try { return !!(chrome.runtime && chrome.runtime.id); } catch { return false; } };
+  let orphanNoticed = false;
+  function orphaned(composer) {
+    if (current) clearCurrent();
+    if (orphanNoticed || !composer) return;
+    orphanNoticed = true;
+    showBubble(composer, { title: 'Revisor atualizado', message: 'Sua mensagem foi enviada sem revisão. Recarregue a página do Slack para ele voltar a revisar.', dismissMs: 8000 });
+  }
 
   // ---------- conversation, per-conversation switch and rules ----------
   const RULES_SEND_MAX = 20;
@@ -640,22 +651,22 @@
     };
     cur.timer = setTimeout(() => fail('Tempo esgotado.'), opts.timeoutSec * 1000);
 
-    const context = readContext(composer);
-    const [samples, links] = await Promise.all([
-      getSamples(context, opts.myName),
-      loadLinkInfo(draftLinks(composer, original))
-    ]);
-    if (current !== cur) return;
-
+    // Any unexpected error ends the review at once instead of leaving the shimmer on
     let res;
     try {
+      const context = readContext(composer);
+      const [samples, links] = await Promise.all([
+        getSamples(context, opts.myName),
+        loadLinkInfo(draftLinks(composer, original))
+      ]);
+      if (current !== cur) return;
       const payload = { model: opts.model, myName: opts.myName, context, samples, draft: original };
       const rules = rulesFor(conversationId());
       if (rules.length) payload.rules = rules;
       if (links.length) payload.links = links;
       res = await chrome.runtime.sendMessage({ type: 'review', payload });
     } catch (e) {
-      return fail('Extensão recarregada. Atualize a página do Slack.');
+      return fail(alive() ? 'Algo deu errado na revisão.' : 'O revisor foi atualizado. Recarregue a página do Slack.');
     }
     if (current !== cur) return;
 
@@ -679,6 +690,10 @@
     if (!composer || !composer.isConnected) return;
     const text = composerText(composer);
     if (!text) return;
+
+    // Disconnected from the extension, or review turned off everywhere: hands off
+    if (!alive()) return orphaned(composer);
+    if (opts.enabled === false) return;
 
     // Review turned off for this conversation: the send goes through untouched
     const here = conversationId();
